@@ -5,16 +5,49 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 
 from models.database import get_db
 from models.database.crud import (
     create_project, get_project, get_projects, 
     update_project, delete_project, get_project_stats
 )
+from models.database.models import SynopsisModel
 from models.schemas import ProjectCreate, ProjectUpdate, Project
 from models.schemas.project import ProjectStatus
 
 router = APIRouter()
+
+
+# 시놉시스 스키마
+class SynopsisCreate(BaseModel):
+    title: str
+    logline: Optional[str] = None
+    premise: Optional[str] = None
+    theme: Optional[str] = None
+    genre: Optional[str] = None
+    target_audience: Optional[str] = None
+    estimated_length: Optional[str] = None
+    content: Optional[str] = None
+    plot_points: Optional[List[dict]] = []
+    character_arcs: Optional[List[dict]] = []
+    notes: Optional[str] = None
+    version: int = 1
+
+
+class SynopsisUpdate(BaseModel):
+    title: Optional[str] = None
+    logline: Optional[str] = None
+    premise: Optional[str] = None
+    theme: Optional[str] = None
+    genre: Optional[str] = None
+    target_audience: Optional[str] = None
+    estimated_length: Optional[str] = None
+    content: Optional[str] = None
+    plot_points: Optional[List[dict]] = None
+    character_arcs: Optional[List[dict]] = None
+    notes: Optional[str] = None
+    version: Optional[int] = None
 
 
 @router.post("/", response_model=dict, summary="프로젝트 생성")
@@ -155,4 +188,141 @@ async def get_project_context(
         "tone": db_project.tone or "",
         "characters": characters_context
     }
+
+
+# ==================== 시놉시스 API ====================
+
+@router.get("/{project_id}/synopsis", response_model=dict, summary="시놉시스 조회")
+async def get_synopsis(
+    project_id: int,
+    db: Session = Depends(get_db)
+):
+    """프로젝트의 시놉시스를 조회합니다."""
+    # 프로젝트 존재 확인
+    db_project = get_project(db, project_id)
+    if not db_project:
+        raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
+    
+    # 시놉시스 조회
+    synopsis = db.query(SynopsisModel).filter(SynopsisModel.project_id == project_id).first()
+    if not synopsis:
+        raise HTTPException(status_code=404, detail="시놉시스가 없습니다.")
+    
+    return {
+        "id": synopsis.id,
+        "project_id": synopsis.project_id,
+        "title": synopsis.title,
+        "logline": synopsis.logline,
+        "premise": synopsis.premise,
+        "theme": synopsis.theme,
+        "genre": synopsis.genre,
+        "target_audience": synopsis.target_audience,
+        "estimated_length": synopsis.estimated_length,
+        "content": synopsis.content,
+        "plot_points": synopsis.plot_points or [],
+        "character_arcs": synopsis.character_arcs or [],
+        "notes": synopsis.notes,
+        "version": synopsis.version,
+        "ai_generated": synopsis.ai_generated,
+        "created_at": synopsis.created_at.isoformat(),
+        "updated_at": synopsis.updated_at.isoformat()
+    }
+
+
+@router.post("/{project_id}/synopsis", response_model=dict, summary="시놉시스 생성")
+async def create_synopsis(
+    project_id: int,
+    synopsis_data: SynopsisCreate,
+    db: Session = Depends(get_db)
+):
+    """프로젝트의 시놉시스를 생성합니다. (프로젝트당 1개)"""
+    # 프로젝트 존재 확인
+    db_project = get_project(db, project_id)
+    if not db_project:
+        raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
+    
+    # 기존 시놉시스 확인
+    existing = db.query(SynopsisModel).filter(SynopsisModel.project_id == project_id).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="이미 시놉시스가 존재합니다. PUT 메서드로 수정하세요.")
+    
+    # 새 시놉시스 생성
+    new_synopsis = SynopsisModel(
+        project_id=project_id,
+        title=synopsis_data.title,
+        logline=synopsis_data.logline,
+        premise=synopsis_data.premise,
+        theme=synopsis_data.theme,
+        genre=synopsis_data.genre,
+        target_audience=synopsis_data.target_audience,
+        estimated_length=synopsis_data.estimated_length,
+        content=synopsis_data.content,
+        plot_points=synopsis_data.plot_points or [],
+        character_arcs=synopsis_data.character_arcs or [],
+        notes=synopsis_data.notes,
+        version=synopsis_data.version
+    )
+    
+    db.add(new_synopsis)
+    db.commit()
+    db.refresh(new_synopsis)
+    
+    return {
+        "id": new_synopsis.id,
+        "project_id": new_synopsis.project_id,
+        "title": new_synopsis.title,
+        "message": "시놉시스가 생성되었습니다."
+    }
+
+
+@router.put("/{project_id}/synopsis", response_model=dict, summary="시놉시스 수정")
+async def update_synopsis(
+    project_id: int,
+    synopsis_data: SynopsisUpdate,
+    db: Session = Depends(get_db)
+):
+    """프로젝트의 시놉시스를 수정합니다."""
+    # 프로젝트 존재 확인
+    db_project = get_project(db, project_id)
+    if not db_project:
+        raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
+    
+    # 시놉시스 조회
+    synopsis = db.query(SynopsisModel).filter(SynopsisModel.project_id == project_id).first()
+    if not synopsis:
+        raise HTTPException(status_code=404, detail="시놉시스가 없습니다. POST 메서드로 먼저 생성하세요.")
+    
+    # 업데이트할 필드만 적용
+    update_data = synopsis_data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        if value is not None:
+            setattr(synopsis, field, value)
+    
+    db.commit()
+    db.refresh(synopsis)
+    
+    return {
+        "id": synopsis.id,
+        "project_id": synopsis.project_id,
+        "title": synopsis.title,
+        "version": synopsis.version,
+        "message": "시놉시스가 수정되었습니다."
+    }
+
+
+@router.delete("/{project_id}/synopsis", summary="시놉시스 삭제")
+async def delete_synopsis(
+    project_id: int,
+    db: Session = Depends(get_db)
+):
+    """프로젝트의 시놉시스를 삭제합니다."""
+    # 시놉시스 조회
+    synopsis = db.query(SynopsisModel).filter(SynopsisModel.project_id == project_id).first()
+    if not synopsis:
+        raise HTTPException(status_code=404, detail="시놉시스가 없습니다.")
+    
+    db.delete(synopsis)
+    db.commit()
+    
+    return {"message": "시놉시스가 삭제되었습니다."}
 

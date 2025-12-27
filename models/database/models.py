@@ -232,3 +232,40 @@ class CallbackModel(Base):
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
+
+class SynopsisModel(Base):
+    """시놉시스 테이블 - 프로젝트당 1개"""
+    __tablename__ = "synopses"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, unique=True, index=True)
+    
+    # 기본 정보
+    title = Column(String(255), nullable=False)
+    logline = Column(Text, nullable=True)  # 한 문장 요약
+    premise = Column(Text, nullable=True)  # 전제
+    theme = Column(Text, nullable=True)    # 주제
+    
+    # 분류
+    genre = Column(String(100), nullable=True)
+    target_audience = Column(String(255), nullable=True)
+    estimated_length = Column(String(100), nullable=True)  # 예: "10부작", "120분"
+    
+    # 본문
+    content = Column(Text, nullable=True)  # 메인 시놉시스 내용
+    
+    # 구조화된 데이터
+    plot_points = Column(JSON, default=list)      # List[{title, description}]
+    character_arcs = Column(JSON, default=list)   # List[{character_name, start_state, end_state, key_moment}]
+    
+    # 메타
+    notes = Column(Text, nullable=True)
+    version = Column(Integer, default=1)
+    
+    # AI 생성 여부
+    ai_generated = Column(Boolean, default=False)
+    
+    # 타임스탬프
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+

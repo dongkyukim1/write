@@ -14,7 +14,8 @@ let state = {
     currentScene: null,
     characters: [],
     episodes: [],
-    generatedContent: null
+    generatedContent: null,
+    synopsis: null
 };
 
 // ==================== API Functions ====================
@@ -761,6 +762,387 @@ switchTab = function(tabName) {
     
     if (tabName === 'scripts') {
         loadAllScenes();
+    } else if (tabName === 'synopsis') {
+        loadSynopsis();
     }
 };
+
+// ==================== 시놉시스 Functions ====================
+
+async function loadSynopsis() {
+    if (!state.currentProject) return;
+    
+    const container = document.getElementById('synopsis-container');
+    container.innerHTML = '<div class="loading-indicator">시놉시스 로딩 중...</div>';
+    
+    try {
+        const response = await fetch(`/api/projects/${state.currentProject.id}/synopsis`);
+        
+        if (response.ok) {
+            const synopsis = await response.json();
+            state.synopsis = synopsis;
+            renderSynopsis(synopsis);
+        } else if (response.status === 404) {
+            // 시놉시스가 없는 경우
+            state.synopsis = null;
+            renderEmptySynopsis();
+        } else {
+            throw new Error('시놉시스를 불러오는 데 실패했습니다');
+        }
+    } catch (error) {
+        console.error('Failed to load synopsis:', error);
+        container.innerHTML = `
+            <div class="empty-synopsis">
+                <div class="empty-synopsis-icon">❌</div>
+                <h4>시놉시스를 불러올 수 없습니다</h4>
+                <p>${error.message}</p>
+            </div>
+        `;
+    }
+}
+
+function renderEmptySynopsis() {
+    const container = document.getElementById('synopsis-container');
+    container.innerHTML = `
+        <div class="empty-synopsis">
+            <div class="empty-synopsis-icon">📋</div>
+            <h4>시놉시스가 없습니다</h4>
+            <p>이 프로젝트의 시놉시스를 작성해보세요</p>
+            <button class="btn-primary" onclick="showNewSynopsisModal()">
+                + 시놉시스 작성
+            </button>
+        </div>
+    `;
+}
+
+function renderSynopsis(synopsis) {
+    const container = document.getElementById('synopsis-container');
+    
+    // 마크다운 형태로 표시
+    const contentHtml = synopsis.content ? 
+        formatSynopsisContent(synopsis.content) : 
+        '<p class="no-content">내용이 없습니다</p>';
+    
+    container.innerHTML = `
+        <div class="synopsis-header">
+            <div class="synopsis-title-area">
+                <h2>${escapeHtml(synopsis.title || '제목 없음')}</h2>
+                ${synopsis.version ? `<span class="synopsis-version">v${synopsis.version}</span>` : ''}
+            </div>
+            <div class="synopsis-actions">
+                <button class="btn-secondary" onclick="editSynopsis()">
+                    ✏️ 편집
+                </button>
+                <button class="btn-secondary" onclick="generateSynopsisFromAI()">
+                    🤖 AI 생성
+                </button>
+                <button class="btn-secondary" onclick="exportSynopsis()">
+                    📥 내보내기
+                </button>
+            </div>
+        </div>
+        
+        <div class="synopsis-meta">
+            ${synopsis.genre ? `<span class="meta-tag">🎭 ${escapeHtml(synopsis.genre)}</span>` : ''}
+            ${synopsis.target_audience ? `<span class="meta-tag">👥 ${escapeHtml(synopsis.target_audience)}</span>` : ''}
+            ${synopsis.estimated_length ? `<span class="meta-tag">📖 ${escapeHtml(synopsis.estimated_length)}</span>` : ''}
+            ${synopsis.updated_at ? `<span class="meta-date">최종 수정: ${formatDate(synopsis.updated_at)}</span>` : ''}
+        </div>
+        
+        ${synopsis.logline ? `
+            <div class="synopsis-section logline-section">
+                <h3>📍 로그라인</h3>
+                <p class="logline-text">${escapeHtml(synopsis.logline)}</p>
+            </div>
+        ` : ''}
+        
+        ${synopsis.premise ? `
+            <div class="synopsis-section">
+                <h3>💡 전제 (Premise)</h3>
+                <p>${escapeHtml(synopsis.premise)}</p>
+            </div>
+        ` : ''}
+        
+        ${synopsis.theme ? `
+            <div class="synopsis-section">
+                <h3>🎯 주제 (Theme)</h3>
+                <p>${escapeHtml(synopsis.theme)}</p>
+            </div>
+        ` : ''}
+        
+        <div class="synopsis-section main-content-section">
+            <h3>📝 시놉시스 본문</h3>
+            <div class="synopsis-content">
+                ${contentHtml}
+            </div>
+        </div>
+        
+        ${synopsis.plot_points && synopsis.plot_points.length > 0 ? `
+            <div class="synopsis-section">
+                <h3>📊 주요 플롯 포인트</h3>
+                <div class="plot-points">
+                    ${synopsis.plot_points.map((point, idx) => `
+                        <div class="plot-point">
+                            <span class="plot-number">${idx + 1}</span>
+                            <div class="plot-content">
+                                <strong>${escapeHtml(point.title || `포인트 ${idx + 1}`)}</strong>
+                                <p>${escapeHtml(point.description || '')}</p>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        ` : ''}
+        
+        ${synopsis.character_arcs && synopsis.character_arcs.length > 0 ? `
+            <div class="synopsis-section">
+                <h3>🎭 캐릭터 아크</h3>
+                <div class="character-arcs">
+                    ${synopsis.character_arcs.map(arc => `
+                        <div class="character-arc-card">
+                            <div class="arc-header">
+                                <span class="arc-name">${escapeHtml(arc.character_name || '캐릭터')}</span>
+                            </div>
+                            <div class="arc-journey">
+                                <div class="arc-point start">
+                                    <span class="arc-label">시작</span>
+                                    <p>${escapeHtml(arc.start_state || '')}</p>
+                                </div>
+                                <div class="arc-arrow">→</div>
+                                <div class="arc-point end">
+                                    <span class="arc-label">끝</span>
+                                    <p>${escapeHtml(arc.end_state || '')}</p>
+                                </div>
+                            </div>
+                            ${arc.key_moment ? `<p class="arc-moment">핵심 순간: ${escapeHtml(arc.key_moment)}</p>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        ` : ''}
+        
+        ${synopsis.notes ? `
+            <div class="synopsis-section notes-section">
+                <h3>📌 참고 사항</h3>
+                <p>${escapeHtml(synopsis.notes)}</p>
+            </div>
+        ` : ''}
+    `;
+}
+
+function formatSynopsisContent(content) {
+    // 간단한 마크다운 → HTML 변환
+    let html = escapeHtml(content);
+    
+    // 줄바꿈 처리
+    html = html.replace(/\n\n/g, '</p><p>');
+    html = html.replace(/\n/g, '<br>');
+    
+    // **bold** 처리
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    
+    // *italic* 처리
+    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    
+    return `<p>${html}</p>`;
+}
+
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ko-KR', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+function showNewSynopsisModal() {
+    document.getElementById('modal-new-synopsis').classList.add('active');
+    
+    // 프로젝트 정보 기반 기본값 설정
+    if (state.currentProject) {
+        document.getElementById('synopsis-title').value = state.currentProject.title + ' 시놉시스';
+    }
+}
+
+async function createSynopsis() {
+    const title = document.getElementById('synopsis-title').value.trim();
+    const logline = document.getElementById('synopsis-logline').value.trim();
+    const premise = document.getElementById('synopsis-premise').value.trim();
+    const theme = document.getElementById('synopsis-theme').value.trim();
+    const genre = document.getElementById('synopsis-genre').value.trim();
+    const content = document.getElementById('synopsis-content').value.trim();
+    
+    if (!title) {
+        showToast('시놉시스 제목을 입력하세요', 'error');
+        return;
+    }
+    
+    try {
+        const result = await api(`/api/projects/${state.currentProject.id}/synopsis`, {
+            method: 'POST',
+            body: JSON.stringify({
+                title,
+                logline,
+                premise,
+                theme,
+                genre,
+                content,
+                version: 1
+            })
+        });
+        
+        showToast('시놉시스가 생성되었습니다');
+        closeModal('modal-new-synopsis');
+        
+        // 폼 초기화
+        document.getElementById('synopsis-title').value = '';
+        document.getElementById('synopsis-logline').value = '';
+        document.getElementById('synopsis-premise').value = '';
+        document.getElementById('synopsis-theme').value = '';
+        document.getElementById('synopsis-genre').value = '';
+        document.getElementById('synopsis-content').value = '';
+        
+        await loadSynopsis();
+    } catch (error) {
+        console.error('Failed to create synopsis:', error);
+    }
+}
+
+function editSynopsis() {
+    if (!state.synopsis) return;
+    
+    // 편집 모달 열기 (기존 데이터로 채우기)
+    document.getElementById('synopsis-title').value = state.synopsis.title || '';
+    document.getElementById('synopsis-logline').value = state.synopsis.logline || '';
+    document.getElementById('synopsis-premise').value = state.synopsis.premise || '';
+    document.getElementById('synopsis-theme').value = state.synopsis.theme || '';
+    document.getElementById('synopsis-genre').value = state.synopsis.genre || '';
+    document.getElementById('synopsis-content').value = state.synopsis.content || '';
+    
+    // 편집 모드 플래그 설정
+    document.getElementById('modal-new-synopsis').dataset.editMode = 'true';
+    document.getElementById('modal-new-synopsis').classList.add('active');
+}
+
+async function saveSynopsis() {
+    const modal = document.getElementById('modal-new-synopsis');
+    const isEditMode = modal.dataset.editMode === 'true';
+    
+    const title = document.getElementById('synopsis-title').value.trim();
+    const logline = document.getElementById('synopsis-logline').value.trim();
+    const premise = document.getElementById('synopsis-premise').value.trim();
+    const theme = document.getElementById('synopsis-theme').value.trim();
+    const genre = document.getElementById('synopsis-genre').value.trim();
+    const content = document.getElementById('synopsis-content').value.trim();
+    
+    if (!title) {
+        showToast('시놉시스 제목을 입력하세요', 'error');
+        return;
+    }
+    
+    try {
+        const method = isEditMode ? 'PUT' : 'POST';
+        const result = await api(`/api/projects/${state.currentProject.id}/synopsis`, {
+            method: method,
+            body: JSON.stringify({
+                title,
+                logline,
+                premise,
+                theme,
+                genre,
+                content,
+                version: isEditMode ? (state.synopsis?.version || 1) + 1 : 1
+            })
+        });
+        
+        showToast(isEditMode ? '시놉시스가 수정되었습니다' : '시놉시스가 생성되었습니다');
+        closeModal('modal-new-synopsis');
+        modal.dataset.editMode = 'false';
+        
+        await loadSynopsis();
+    } catch (error) {
+        console.error('Failed to save synopsis:', error);
+    }
+}
+
+async function generateSynopsisFromAI() {
+    if (!state.currentProject) return;
+    
+    const confirmed = confirm(
+        'AI가 프로젝트의 캐릭터와 에피소드 정보를 기반으로 시놉시스를 생성합니다.\n' +
+        '기존 시놉시스가 있다면 덮어쓰게 됩니다.\n\n계속하시겠습니까?'
+    );
+    
+    if (!confirmed) return;
+    
+    const container = document.getElementById('synopsis-container');
+    container.innerHTML = `
+        <div class="loading-synopsis">
+            <div class="loading-spinner"></div>
+            <h4>AI가 시놉시스를 생성 중입니다...</h4>
+            <p>캐릭터와 에피소드 정보를 분석하고 있습니다</p>
+        </div>
+    `;
+    
+    try {
+        const result = await api(`/api/generate/synopsis`, {
+            method: 'POST',
+            body: JSON.stringify({
+                project_id: state.currentProject.id
+            })
+        });
+        
+        showToast('AI 시놉시스가 생성되었습니다!');
+        await loadSynopsis();
+    } catch (error) {
+        console.error('Failed to generate synopsis:', error);
+        await loadSynopsis(); // 기존 상태로 복구
+    }
+}
+
+function exportSynopsis() {
+    if (!state.synopsis) {
+        showToast('내보낼 시놉시스가 없습니다', 'error');
+        return;
+    }
+    
+    // 마크다운 형식으로 내보내기
+    let markdown = `# ${state.synopsis.title || '시놉시스'}\n\n`;
+    
+    if (state.synopsis.logline) {
+        markdown += `## 로그라인\n${state.synopsis.logline}\n\n`;
+    }
+    
+    if (state.synopsis.premise) {
+        markdown += `## 전제 (Premise)\n${state.synopsis.premise}\n\n`;
+    }
+    
+    if (state.synopsis.theme) {
+        markdown += `## 주제 (Theme)\n${state.synopsis.theme}\n\n`;
+    }
+    
+    if (state.synopsis.content) {
+        markdown += `## 시놉시스 본문\n${state.synopsis.content}\n\n`;
+    }
+    
+    if (state.synopsis.notes) {
+        markdown += `## 참고 사항\n${state.synopsis.notes}\n\n`;
+    }
+    
+    // 파일 다운로드
+    const blob = new Blob([markdown], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${state.synopsis.title || 'synopsis'}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    showToast('시놉시스가 마크다운 파일로 저장되었습니다');
+}
 
