@@ -1,22 +1,52 @@
-# 글쓰기 작가를 위한 AI LLM 워크스페이스 필수 패키지
+# 대본 작성 AI 시스템 - 필수 패키지
+# Cursor + Git + MCP + OpenAPI 기반
+
+# ==================== 핵심 패키지 ====================
 
 # 환경 변수 관리
 python-dotenv>=1.0.0
 
-# OpenAI API (선택사항)
+# 데이터 유효성 검사
+pydantic>=2.0.0
+
+# ==================== AI 프로바이더 ====================
+
+# OpenAI API
 openai>=1.0.0
 
-# Anthropic Claude API (선택사항)
+# Anthropic Claude API
 anthropic>=0.18.0
 
-# 기타 유틸리티
-requests>=2.31.0
+# ==================== 웹 서버 (FastAPI) ====================
 
-# 벡터 DB (RAG 시스템) - 선택사항
+# FastAPI 웹 프레임워크
+fastapi>=0.109.0
+
+# ASGI 서버
+uvicorn[standard]>=0.27.0
+
+# ==================== 데이터베이스 ====================
+
+# SQLAlchemy ORM
+sqlalchemy>=2.0.0
+
+# ==================== RAG 시스템 (선택) ====================
+
+# 벡터 DB
 chromadb>=0.4.0
 
-# Notion API - 선택사항
+# ==================== 외부 연동 (선택) ====================
+
+# HTTP 클라이언트
+requests>=2.31.0
+
+# Notion API
 notion-client>=2.2.1
 
-# 웹 서버 (MCP 서버용) - Python 내장
-# http.server는 표준 라이브러리
+# ==================== 개발 도구 ====================
+
+# 테스트
+pytest>=7.0.0
+
+# 코드 포맷팅
+black>=23.0.0
