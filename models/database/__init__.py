@@ -3,7 +3,7 @@
 SQLite + SQLAlchemy를 사용한 데이터 저장
 """
 
-from .schema import Base, engine, get_db, init_db
+from .schema import Base, engine, get_db, init_db, SessionLocal
 from .models import (
     ProjectModel, 
     EpisodeModel, 
@@ -14,7 +14,7 @@ from .models import (
 )
 
 __all__ = [
-    "Base", "engine", "get_db", "init_db",
+    "Base", "engine", "get_db", "init_db", "SessionLocal",
     "ProjectModel", "EpisodeModel", "SceneModel", 
     "CharacterModel", "EvaluationModel", "CallbackModel"
 ]

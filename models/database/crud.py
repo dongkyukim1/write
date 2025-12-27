@@ -142,11 +142,27 @@ def delete_episode(db: Session, episode_id: int) -> bool:
 
 # ==================== Scene CRUD ====================
 
-def generate_scene_id(episode: EpisodeModel, scene_number: int) -> str:
-    """장면 ID 생성 (예: S01E03_SC02)"""
-    project = episode.project
+def generate_scene_id(db: Session, episode: EpisodeModel, scene_number: int) -> str:
+    """장면 ID 생성 (예: S01E03_SC02) - 중복 시 suffix 추가"""
     season = 1  # 기본값, 필요시 확장
-    return f"S{season:02d}E{episode.episode_number:02d}_SC{scene_number:02d}"
+    base_id = f"S{season:02d}E{episode.episode_number:02d}_SC{scene_number:02d}"
+    
+    # 중복 체크
+    existing = db.query(SceneModel).filter(SceneModel.scene_id == base_id).first()
+    if not existing:
+        return base_id
+    
+    # 중복이면 suffix 추가
+    suffix = 1
+    while True:
+        new_id = f"{base_id}_{suffix}"
+        existing = db.query(SceneModel).filter(SceneModel.scene_id == new_id).first()
+        if not existing:
+            return new_id
+        suffix += 1
+        if suffix > 100:  # 무한 루프 방지
+            import time
+            return f"{base_id}_{int(time.time())}"
 
 
 def create_scene(db: Session, scene: SceneCreate) -> SceneModel:
@@ -155,7 +171,7 @@ def create_scene(db: Session, scene: SceneCreate) -> SceneModel:
     if not episode:
         raise ValueError(f"에피소드 ID {scene.episode_id}를 찾을 수 없습니다.")
     
-    scene_id = generate_scene_id(episode, scene.scene_number)
+    scene_id = generate_scene_id(db, episode, scene.scene_number)
     
     db_scene = SceneModel(
         episode_id=scene.episode_id,

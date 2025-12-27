@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>송우진 프로젝트 - AI 대본 작성 도우미</title>
+    <link rel="stylesheet" href="/static/style.css?v=2">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- 사이드바 -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span class="logo-icon">✦</span>
+                    <span class="logo-text">송우진 프로젝트</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-content">
+                <div class="section-header">
+                    <span>프로젝트</span>
+                    <button class="btn-icon" onclick="showNewProjectModal()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                    </button>
+                </div>
+                <div id="project-list" class="project-list">
+                    <!-- 프로젝트 목록이 여기에 렌더링됨 -->
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="server-status">
+                    <span class="status-dot"></span>
+                    <span>API 연결됨</span>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- 메인 컨텐츠 -->
+        <main class="main-content">
+            <!-- 빈 상태 -->
+            <div id="empty-state" class="empty-state">
+                <div class="empty-icon">📝</div>
+                <h2>프로젝트를 선택하세요</h2>
+                <p>왼쪽에서 프로젝트를 선택하거나 새로 만들어보세요</p>
+                <button class="btn-primary" onclick="showNewProjectModal()">
+                    새 프로젝트 만들기
+                </button>
+            </div>
+            
+            <!-- 프로젝트 뷰 -->
+            <div id="project-view" class="content-view" style="display: none;">
+                <div class="view-header">
+                    <div class="breadcrumb" id="breadcrumb"></div>
+                    <div class="view-actions">
+                        <button class="btn-secondary" onclick="showEditProjectModal()">설정</button>
+                    </div>
+                </div>
+                
+                <div class="view-body">
+                    <!-- 탭 네비게이션 -->
+                    <div class="tabs">
+                        <button class="tab active" data-tab="overview" onclick="switchTab('overview')">개요</button>
+                        <button class="tab" data-tab="characters" onclick="switchTab('characters')">캐릭터</button>
+                        <button class="tab" data-tab="episodes" onclick="switchTab('episodes')">에피소드</button>
+                        <button class="tab" data-tab="generate" onclick="switchTab('generate')">AI 생성</button>
+                        <button class="tab" data-tab="scripts" onclick="switchTab('scripts')">생성된 대본</button>
+                    </div>
+                    
+                    <!-- 개요 탭 -->
+                    <div id="tab-overview" class="tab-content active">
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-value" id="stat-episodes">0</div>
+                                <div class="stat-label">에피소드</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value" id="stat-scenes">0</div>
+                                <div class="stat-label">장면</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value" id="stat-characters">0</div>
+                                <div class="stat-label">캐릭터</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value" id="stat-words">0</div>
+                                <div class="stat-label">총 글자</div>
+                            </div>
+                        </div>
+                        
+                        <div class="card">
+                            <h3>세계관 설정</h3>
+                            <pre id="world-setting" class="code-block"></pre>
+                        </div>
+                        
+                        <div class="card">
+                            <h3>스타일 가이드</h3>
+                            <pre id="style-guide" class="code-block"></pre>
+                        </div>
+                    </div>
+                    
+                    <!-- 캐릭터 탭 -->
+                    <div id="tab-characters" class="tab-content">
+                        <div class="section-actions">
+                            <button class="btn-primary" onclick="showNewCharacterModal()">
+                                + 캐릭터 추가
+                            </button>
+                        </div>
+                        <div id="character-list" class="card-grid">
+                            <!-- 캐릭터 카드들 -->
+                        </div>
+                    </div>
+                    
+                    <!-- 에피소드 탭 -->
+                    <div id="tab-episodes" class="tab-content">
+                        <div class="section-actions">
+                            <button class="btn-primary" onclick="showNewEpisodeModal()">
+                                + 에피소드 추가
+                            </button>
+                        </div>
+                        <div id="episode-list" class="episode-list">
+                            <!-- 에피소드 목록 -->
+                        </div>
+                    </div>
+                    
+                    <!-- AI 생성 탭 -->
+                    <div id="tab-generate" class="tab-content">
+                        <div class="generate-panel">
+                            <div class="generate-form">
+                                <h3>AI 장면 생성</h3>
+                                
+                                <div class="form-group">
+                                    <label>에피소드 선택</label>
+                                    <select id="gen-episode" class="form-select">
+                                        <option value="">에피소드를 선택하세요</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>장면 번호</label>
+                                    <input type="number" id="gen-scene-number" class="form-input" value="1" min="1">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>장면 목표 *</label>
+                                    <textarea id="gen-goal" class="form-textarea" rows="3" 
+                                        placeholder="이 장면에서 달성하고 싶은 것을 설명하세요..."></textarea>
+                                </div>
+                                
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>장면 타입</label>
+                                        <select id="gen-scene-type" class="form-select">
+                                            <option value="dialogue">대화</option>
+                                            <option value="opening">오프닝</option>
+                                            <option value="talk">본격 토크</option>
+                                            <option value="highlight">하이라이트</option>
+                                            <option value="closing">마무리</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>갈등 유형</label>
+                                        <select id="gen-conflict" class="form-select">
+                                            <option value="none">없음</option>
+                                            <option value="relationship">관계</option>
+                                            <option value="internal">내면</option>
+                                            <option value="ideological">가치관</option>
+                                            <option value="comedic">코미디</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>참여 캐릭터</label>
+                                    <div id="gen-characters" class="checkbox-group">
+                                        <!-- 캐릭터 체크박스들 -->
+                                    </div>
+                                </div>
+                                
+                                <button class="btn-primary btn-large" onclick="generateScene()" id="generate-btn">
+                                    ✨ AI로 장면 생성하기
+                                </button>
+                            </div>
+                            
+                            <div class="generate-result" id="generate-result" style="display: none;">
+                                <div class="result-header">
+                                    <h3>생성된 장면</h3>
+                                    <div class="result-actions">
+                                        <button class="btn-secondary" onclick="copyResult()">복사</button>
+                                        <button class="btn-primary" onclick="saveScene()">저장</button>
+                                    </div>
+                                </div>
+                                <div class="result-content" id="result-content"></div>
+                                
+                                <div class="evaluation-panel" id="evaluation-panel" style="display: none;">
+                                    <h4>AI 평가</h4>
+                                    <div class="score-grid">
+                                        <div class="score-item">
+                                            <div class="score-label">종합</div>
+                                            <div class="score-bar">
+                                                <div class="score-fill" id="score-overall"></div>
+                                            </div>
+                                            <div class="score-value" id="score-overall-value">0%</div>
+                                        </div>
+                                        <div class="score-item">
+                                            <div class="score-label">창의성</div>
+                                            <div class="score-bar">
+                                                <div class="score-fill" id="score-creativity"></div>
+                                            </div>
+                                            <div class="score-value" id="score-creativity-value">0%</div>
+                                        </div>
+                                    </div>
+                                    <div class="evaluation-summary" id="evaluation-summary"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 생성된 대본 탭 -->
+                    <div id="tab-scripts" class="tab-content">
+                        <div class="section-header-row">
+                            <h3>생성된 장면 목록</h3>
+                            <select id="scripts-episode-filter" class="form-select" style="width: 200px;" onchange="loadScriptsByEpisode()">
+                                <option value="">모든 에피소드</option>
+                            </select>
+                        </div>
+                        
+                        <div id="scripts-list" class="scripts-list">
+                            <!-- 장면 목록이 여기에 렌더링됨 -->
+                        </div>
+                        
+                        <!-- 선택된 장면 상세 보기 -->
+                        <div id="script-detail" class="script-detail" style="display: none;">
+                            <div class="script-detail-header">
+                                <div class="script-meta">
+                                    <span class="badge" id="detail-scene-type">대화</span>
+                                    <span class="badge" id="detail-ai-badge">AI 생성</span>
+                                    <span class="badge" id="detail-edited-badge" style="display: none;">수정됨</span>
+                                </div>
+                                <h2 id="detail-scene-title">장면 제목</h2>
+                                <p id="detail-scene-goal" class="scene-goal"></p>
+                            </div>
+                            
+                            <div class="script-content-box">
+                                <pre id="detail-scene-content" class="script-content"></pre>
+                            </div>
+                            
+                            <!-- 평가 정보 -->
+                            <div id="detail-evaluation" class="evaluation-detail" style="display: none;">
+                                <h4>AI 평가 결과</h4>
+                                <div class="eval-scores">
+                                    <div class="eval-score-item">
+                                        <span class="eval-label">종합</span>
+                                        <div class="eval-bar"><div class="eval-fill" id="eval-overall"></div></div>
+                                        <span class="eval-value" id="eval-overall-value">0%</span>
+                                    </div>
+                                    <div class="eval-score-item">
+                                        <span class="eval-label">창의성</span>
+                                        <div class="eval-bar"><div class="eval-fill" id="eval-creativity"></div></div>
+                                        <span class="eval-value" id="eval-creativity-value">0%</span>
+                                    </div>
+                                    <div class="eval-score-item">
+                                        <span class="eval-label">일관성</span>
+                                        <div class="eval-bar"><div class="eval-fill" id="eval-consistency"></div></div>
+                                        <span class="eval-value" id="eval-consistency-value">0%</span>
+                                    </div>
+                                    <div class="eval-score-item">
+                                        <span class="eval-label">감정</span>
+                                        <div class="eval-bar"><div class="eval-fill" id="eval-emotion"></div></div>
+                                        <span class="eval-value" id="eval-emotion-value">0%</span>
+                                    </div>
+                                    <div class="eval-score-item">
+                                        <span class="eval-label">대화</span>
+                                        <div class="eval-bar"><div class="eval-fill" id="eval-dialogue"></div></div>
+                                        <span class="eval-value" id="eval-dialogue-value">0%</span>
+                                    </div>
+                                </div>
+                                <div class="eval-summary" id="eval-summary-text"></div>
+                                <div class="eval-lists">
+                                    <div class="eval-list">
+                                        <h5>강점</h5>
+                                        <ul id="eval-strengths"></ul>
+                                    </div>
+                                    <div class="eval-list">
+                                        <h5>개선 제안</h5>
+                                        <ul id="eval-suggestions"></ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 장면 상세 뷰 -->
+            <div id="scene-view" class="content-view" style="display: none;">
+                <div class="view-header">
+                    <button class="btn-back" onclick="goBackToEpisode()">← 돌아가기</button>
+                    <div class="view-actions">
+                        <button class="btn-secondary" onclick="evaluateCurrentScene()">평가하기</button>
+                        <button class="btn-primary" onclick="saveCurrentScene()">저장</button>
+                    </div>
+                </div>
+                
+                <div class="scene-editor">
+                    <div class="scene-meta">
+                        <input type="text" id="scene-title" class="scene-title-input" placeholder="장면 제목">
+                        <div class="scene-badges">
+                            <span class="badge" id="scene-type-badge">대화</span>
+                            <span class="badge" id="scene-ai-badge" style="display: none;">AI 생성</span>
+                        </div>
+                    </div>
+                    <textarea id="scene-content" class="scene-content-editor" placeholder="장면 내용을 입력하세요..."></textarea>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- 모달: 새 프로젝트 -->
+    <div id="modal-new-project" class="modal">
+        <div class="modal-backdrop" onclick="closeModal('modal-new-project')"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>새 프로젝트</h2>
+                <button class="btn-close" onclick="closeModal('modal-new-project')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>프로젝트 제목 *</label>
+                    <input type="text" id="new-project-title" class="form-input" placeholder="예: 매불쇼 시즌1">
+                </div>
+                <div class="form-group">
+                    <label>프로젝트 타입</label>
+                    <select id="new-project-type" class="form-select">
+                        <option value="talk_show">토크쇼</option>
+                        <option value="drama">드라마</option>
+                        <option value="movie">영화</option>
+                        <option value="web_drama">웹드라마</option>
+                        <option value="variety">예능</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>설명</label>
+                    <textarea id="new-project-desc" class="form-textarea" rows="2" placeholder="프로젝트에 대한 간단한 설명"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>세계관 설정</label>
+                    <textarea id="new-project-world" class="form-textarea" rows="4" 
+                        placeholder="세계관 규칙을 줄바꿈으로 구분하여 입력&#10;예:&#10;현대 한국 배경&#10;초능력 없음"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('modal-new-project')">취소</button>
+                <button class="btn-primary" onclick="createProject()">생성</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 모달: 새 캐릭터 -->
+    <div id="modal-new-character" class="modal">
+        <div class="modal-backdrop" onclick="closeModal('modal-new-character')"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>새 캐릭터</h2>
+                <button class="btn-close" onclick="closeModal('modal-new-character')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>캐릭터 이름 *</label>
+                    <input type="text" id="new-char-name" class="form-input" placeholder="예: 최욱">
+                </div>
+                <div class="form-group">
+                    <label>역할</label>
+                    <select id="new-char-role" class="form-select">
+                        <option value="host">진행자</option>
+                        <option value="co_host">공동 진행자</option>
+                        <option value="guest">게스트</option>
+                        <option value="protagonist">주인공</option>
+                        <option value="supporting">조연</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>성격 설명</label>
+                    <textarea id="new-char-personality" class="form-textarea" rows="2" 
+                        placeholder="캐릭터의 성격을 설명하세요"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>말투 특징</label>
+                    <textarea id="new-char-speech" class="form-textarea" rows="2" 
+                        placeholder="이 캐릭터만의 말투 특징"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>금지 설정 (줄바꿈으로 구분)</label>
+                    <textarea id="new-char-forbidden" class="form-textarea" rows="2" 
+                        placeholder="이 캐릭터가 하면 안 되는 것들"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('modal-new-character')">취소</button>
+                <button class="btn-primary" onclick="createCharacter()">생성</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 모달: 새 에피소드 -->
+    <div id="modal-new-episode" class="modal">
+        <div class="modal-backdrop" onclick="closeModal('modal-new-episode')"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>새 에피소드</h2>
+                <button class="btn-close" onclick="closeModal('modal-new-episode')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>에피소드 번호 *</label>
+                    <input type="number" id="new-ep-number" class="form-input" value="1" min="1">
+                </div>
+                <div class="form-group">
+                    <label>에피소드 제목 *</label>
+                    <input type="text" id="new-ep-title" class="form-input" placeholder="예: 이번 주 핵심 이슈">
+                </div>
+                <div class="form-group">
+                    <label>메인 토픽</label>
+                    <input type="text" id="new-ep-topic" class="form-input" placeholder="이번 에피소드의 메인 주제">
+                </div>
+                <div class="form-group">
+                    <label>작가 노트</label>
+                    <textarea id="new-ep-notes" class="form-textarea" rows="3" placeholder="참고 사항"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('modal-new-episode')">취소</button>
+                <button class="btn-primary" onclick="createEpisode()">생성</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 토스트 알림 -->
+    <div id="toast" class="toast"></div>
+    
+    <script src="/static/app.js?v=6"></script>
+</body>
+</html>
+
