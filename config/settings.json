@@ -1,0 +1,59 @@
+{
+  "notion": {
+    "default_parent_url": "https://www.notion.so/2d2e7fbfc5a78081840fdc817d264771?source=copy_link",
+    "auto_upload": true
+  },
+  "default_model": {
+    "provider": "openai",
+    "model": "gpt-4",
+    "temperature": 0.7,
+    "max_tokens": 2000
+  },
+  "models": {
+    "openai": {
+      "provider": "openai",
+      "models": {
+        "creative": {
+          "model": "gpt-4",
+          "temperature": 0.9,
+          "max_tokens": 3000
+        },
+        "structured": {
+          "model": "gpt-4",
+          "temperature": 0.5,
+          "max_tokens": 2000
+        },
+        "fast": {
+          "model": "gpt-3.5-turbo",
+          "temperature": 0.7,
+          "max_tokens": 1500
+        }
+      }
+    },
+    "claude": {
+      "provider": "anthropic",
+      "models": {
+        "creative": {
+          "model": "claude-3-opus",
+          "temperature": 0.9,
+          "max_tokens": 4000
+        },
+        "structured": {
+          "model": "claude-3-sonnet",
+          "temperature": 0.5,
+          "max_tokens": 2000
+        }
+      }
+    }
+  },
+  "prompt_settings": {
+    "default_language": "korean",
+    "tone": "professional",
+    "style": "creative"
+  },
+  "output_settings": {
+    "format": "markdown",
+    "encoding": "utf-8"
+  }
+}
+

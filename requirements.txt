@@ -1,0 +1,22 @@
+# 글쓰기 작가를 위한 AI LLM 워크스페이스 필수 패키지
+
+# 환경 변수 관리
+python-dotenv>=1.0.0
+
+# OpenAI API (선택사항)
+openai>=1.0.0
+
+# Anthropic Claude API (선택사항)
+anthropic>=0.18.0
+
+# 기타 유틸리티
+requests>=2.31.0
+
+# 벡터 DB (RAG 시스템) - 선택사항
+chromadb>=0.4.0
+
+# Notion API - 선택사항
+notion-client>=2.2.1
+
+# 웹 서버 (MCP 서버용) - Python 내장
+# http.server는 표준 라이브러리
