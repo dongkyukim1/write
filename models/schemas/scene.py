@@ -142,6 +142,5 @@ class Scene(SceneBase, TimestampMixin, BaseSchema):
 
 class SceneWithEvaluation(Scene):
     """평가 정보가 포함된 장면"""
-    from .evaluation import Evaluation
-    evaluation: Optional[Evaluation] = None
+    evaluation: Optional[Any] = None  # Evaluation 타입 (순환 참조 방지)
 
